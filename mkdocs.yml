@@ -1,0 +1,29 @@
+site_name: EOAP Validator
+site_description: Inspect EO Application Packages and Transpiler-Mate metadata.
+site_url: https://eoap.github.io/eoap-validator/
+repo_url: https://github.com/eoap/eoap-validator
+repo_name: eoap/eoap-validator
+
+theme:
+  name: material
+
+nav:
+  - Home: index.md
+  - How-to guides:
+      - Use the CLI: how-to/cli.md
+      - Use validation in CI: how-to/ci.md
+  - Reference:
+      - Profiles and reporting: reference/profiles.md
+  - Explanation:
+      - Architecture and boundaries: explanation/architecture.md
+
+plugins:
+  - search
+  - mermaid2
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight
+  - pymdownx.superfences
+  - toc:
+      permalink: true

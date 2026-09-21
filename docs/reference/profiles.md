@@ -94,7 +94,7 @@ Quality checks run after successful model validation.
 
 ## Reports
 
-The authoritative output schema is [report.yaml](../../schemas/report.yaml),
+The authoritative output schema is [report.yaml](https://github.com/eoap/eoap-validator/blob/main/schemas/report.yaml),
 JSON Schema Draft 2020-12 encoded as YAML. It covers all assessment fields,
 findings, source locations, counts, exit code and the `fail_on` threshold.
 Both CLI and library serialization pass through the generated `models.Report`.
