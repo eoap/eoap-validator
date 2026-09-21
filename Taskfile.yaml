@@ -1,0 +1,21 @@
+version: '3'
+
+includes:
+  json: https://raw.githubusercontent.com/Terradue/taskfile-utils/refs/heads/main/json.yaml
+
+tasks:
+  default:
+    cmds:
+      - hatch run test:check
+      - hatch run test:format
+      - hatch run test:typecheck
+      - hatch run test:test
+
+  generate_ms_skeleton:
+    desc: Generate Pydantic report models from JSON Schema
+    cmds:
+      - task: json:create_models
+        vars:
+          INPUT_FILE_TYPE: 'jsonschema'
+          SCHEMA: './schemas/report.yaml'
+          OUTPUT: './src/eoap_validator/models.py'

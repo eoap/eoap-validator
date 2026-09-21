@@ -1,0 +1,56 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "eoap-validator"
+version = "0.1.0"
+description = "Inspect EO Application Packages and Transpiler-Mate metadata."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "Apache-2.0"
+dependencies = [
+  "cwl-loader>=0.25.1,<1",
+  "cwltool>=3.1.20240508115724,<4",
+  "transpiler-mate-api==1.0.0",
+  "pydantic>=2,<3",
+  "PyLD>=2,<4",
+  "ruamel.yaml>=0.18,<0.19",
+  "requests>=2.32,<3",
+  "session-adapters>=0.5.0,<1",
+  "loguru>=0.7,<1",
+  "click>=8.1,<9",
+]
+
+[project.scripts]
+eoap-validator = "eoap_validator.cli:main"
+
+[project.optional-dependencies]
+test = ["pytest>=8,<10", "ruff>=0.11", "mypy>=1.15", "types-requests", "jsonschema>=4.18,<5"]
+
+[project.urls]
+Repository = "https://github.com/transpiler-mate/eoap-validator"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eoap_validator"]
+
+[tool.hatch.envs.test]
+features = ["test"]
+[tool.hatch.envs.test.scripts]
+test = "pytest {args:tests}"
+check = "ruff check src tests"
+format = "ruff format --check src tests"
+typecheck = "mypy src"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py310"
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+check_untyped_defs = true
+ignore_missing_imports = true

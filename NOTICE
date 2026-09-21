@@ -1,0 +1,9 @@
+EOAP Validator
+Copyright 2026 Transpiler-Mate
+
+Rule intent and tests/data/legacy-valid.cwl derive from EOEPCA's
+app-package-validation (ogc-ap-validator 0.5.0), whose setup.cfg declares
+Apache License, Version 2.0. Original project:
+https://github.com/EOEPCA/app-package-validation
+The fixture is retained unchanged. No legacy Python implementation is copied.
+OGC requirement references identify OGC Best Practice 20-089r1.
