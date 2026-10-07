@@ -1,7 +1,7 @@
 # Use validation in CI
 
 ```sh
-eoap-validator 'workflow.cwl#main' \
+eoap-validator 'workflow.cwl#echo-application' \
   --profile eoap-package --profile metadata \
   --output build/validation.json
 ```

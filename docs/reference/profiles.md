@@ -1,6 +1,6 @@
 # Profiles and reporting contract
 
-Report schema is `1.0`; `eoap-package` is revision `1.1` and other profiles
+Report schema is `1.0`; `eoap-package` is revision `1.2` and other profiles
 remain at `1.0`. Validator version starts at
 `0.1.0`. Reports include the installed cwltool, cwl-loader and API versions.
 Profile changes that alter acceptance behavior require a profile revision.
@@ -32,6 +32,8 @@ It is a declared static assessment, not certification of all conformance classes
 | `EOAP.REQ11.VERSION` | Nonempty application softwareVersion or legacy version metadata. |
 | `EOAP.SOURCE.ID` | An explicit process ID is present in the source, rather than only a parser-generated ID. |
 | `EOAP.SOURCE.DECLARATIONS` | Declaration checks blocked where a trustworthy source mapping is unavailable. |
+| `SCHEDULING.RESOURCE.*` | Explicit CPU and RAM minima and maxima for every reachable tool invocation. |
+| `SERVICE.PROCESS.ID` | All resolved Workflow and CommandLineTool IDs must differ from `main`. |
 | `EOAP.CONTAINER.HINT` | Advisory warning: the declared container is a hint rather than a mandatory requirement. |
 
 Mandatory container requirements inherit through workflow and step invocation
@@ -42,8 +44,8 @@ packaging requirement visible even where a runner could inherit all requirements
 
 The legacy `dockerOutputDirectory` prohibition is intentionally not carried over:
 it had no OGC requirement reference and belongs in a named platform profile.
-Absence of optional legacy metadata is not an error. Resource sizing, fan-out
-recommendations and platform compatibility profiles are not implemented here.
+Absence of optional legacy metadata is not an error. Resource expression evaluation, fan-out
+recommendations and other platform compatibility checks are not implemented here.
 
 The package profile also defines the following documentation rules. These are
 profile-specific additions, not newly numbered OGC requirements:
@@ -130,3 +132,20 @@ Reports include root and resolved process-source URIs and directly detected
 missing dependency URIs. This is explicitly not a complete `$import`/`$include`
 manifest. An unavailable source range does not by itself fail an otherwise
 completed semantic assessment.
+
+## Mandatory scheduling and process identifier policy
+
+The `eoap-package` profile requires explicit `coresMin`, `coresMax`, `ramMin`,
+and `ramMax` in an effective `ResourceRequirement` under `requirements` for
+every reachable CommandLineTool invocation. Workflow and step requirements
+inherit; a more local ResourceRequirement replaces the inherited one as a whole.
+Hints do not satisfy this policy. Missing fields produce
+`SCHEDULING.RESOURCE.<field>` errors. CWL expressions are accepted as declarations;
+the validator does not evaluate their runtime values.
+
+All resolved Workflows and CommandLineTools, including internal and unreachable
+processes, must use an ID other than `main`. Violations produce
+`SERVICE.PROCESS.ID` errors. Both policies are mandatory profile additions for
+processing-service registration and Calrissian scheduling on Kubernetes, beyond
+strict OGC 20-089r1 conformance. These checks do not run in metadata-only or
+staging-only assessments.
