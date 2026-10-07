@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "eoap-validator"
-version = "0.1.0"
+version = "0.2.0"
 description = "Inspect EO Application Packages and Transpiler-Mate metadata."
 readme = "README.md"
 requires-python = ">=3.10"
