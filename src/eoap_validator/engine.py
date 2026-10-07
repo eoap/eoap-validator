@@ -98,7 +98,7 @@ def operational(exc: BaseException | None) -> bool:
 def select(source: Source, index: dict[str, Any], fragment: str | None):
     if fragment is not None:
         if not fragment:
-            raise ValueError("Empty workflow fragment; use workflow.cwl#main.")
+            raise ValueError("Empty workflow fragment; use workflow.cwl#application.")
         if fragment not in index:
             raise ValueError(f"Unknown entrypoint {fragment!r}.")
         selected = index[fragment]
@@ -142,7 +142,7 @@ def validate(
         dependencies=[uri],
     )
     if "eoap-package" in selected_profiles:
-        report.profiles["eoap-package"] = "1.1"
+        report.profiles["eoap-package"] = "1.2"
     for package in ("cwltool", "cwl-loader", "transpiler-mate-api"):
         try:
             report.tool_versions[package] = version(package)
@@ -279,7 +279,7 @@ def validate(
         )
         return report
     sources = {uri: source}
-    for process, _, _ in contexts:
+    for process in processes:
         process_uri = urldefrag(str(process.loadingOptions.fileuri or uri))[0]
         if process_uri not in report.dependencies:
             report.dependencies.append(process_uri)
@@ -305,7 +305,8 @@ def validate(
             else "Selected graph must contain a Workflow and at least one CommandLineTool.",
             profile="eoap-package",
         )
-    report.findings.extend(
-        PackageRules(source, sources, selected_profiles, staging).run(contexts)
-    )
+    rules = PackageRules(source, sources, selected_profiles, staging)
+    if "eoap-package" in selected_profiles:
+        rules.identifiers(processes)
+    report.findings.extend(rules.run(contexts))
     return report

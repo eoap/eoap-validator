@@ -188,6 +188,7 @@ class PackageRules:
                 "inputs",
                 passed_message=f"CommandLineTool '{process.id}' has an inputs collection (which may be empty).",
             )
+            self.resources(process, effective, path)
             docker = effective.get("DockerRequirement")
             docker = docker or effective.get("hint:DockerRequirement")
             self.require(
@@ -218,6 +219,46 @@ class PackageRules:
             self.descriptions(process, "inputs", "EOAP.CLT.INPUT")
             self.descriptions(process, "outputs", "EOAP.CLT.OUTPUT")
         self.explicit_declarations(process)
+
+    def resources(self, process, effective, path):
+        resources = effective.get("ResourceRequirement")
+        for field in ("coresMin", "coresMax", "ramMin", "ramMax"):
+            ok = resources is not None and getattr(resources, field, None) is not None
+            self.add(
+                f"SCHEDULING.RESOURCE.{field}",
+                "eoap-package",
+                "passed" if ok else "failed",
+                f"Invocation '{'/'.join(path)}' declares ResourceRequirement.{field}."
+                if ok
+                else f"Invocation '{'/'.join(path)}' must declare ResourceRequirement.{field} for Calrissian scheduling.",
+                process,
+                "requirements",
+                suggestion=None
+                if ok
+                else f"Define {field} in an effective ResourceRequirement under requirements (Workflow, step, or tool).",
+            )
+
+    def identifiers(self, processes):
+        """Check all resolved processes, including those outside the selected graph."""
+        for process in processes:
+            if process.class_ not in {"Workflow", "CommandLineTool"}:
+                continue
+            identifier = str(process.id)
+            fragment = urldefrag(identifier)[1]
+            ok = (fragment or identifier).rstrip("/").rsplit("/", 1)[-1] != "main"
+            self.add(
+                "SERVICE.PROCESS.ID",
+                "eoap-package",
+                "passed" if ok else "failed",
+                f"{process.class_} '{identifier}' has an application-specific process ID."
+                if ok
+                else f"{process.class_} '{identifier}' must not use the process ID 'main'.",
+                process,
+                "id",
+                suggestion=None
+                if ok
+                else "Use a descriptive application-specific process ID and update references to it.",
+            )
 
     def descriptions(self, process, collection, prefix, *, mandatory=False):
         """Profile-specific documentation rules, distinct from numbered OGC rules."""

@@ -40,6 +40,10 @@ def test_legacy_rules(write, mutation, rule):
         assert rule in failed, report.to_dict()
         assert report.exit_code() == 1
     else:
-        # The unchanged legacy fixture predates mandatory entry-output descriptions.
-        assert failed == {"EOAP.WORKFLOW.OUTPUT.LABEL", "EOAP.WORKFLOW.OUTPUT.DOC"}
+        # The unchanged legacy fixture predates mandatory entry-output descriptions and explicit resource minima.
+        assert failed == {
+            "EOAP.WORKFLOW.OUTPUT.LABEL",
+            "EOAP.WORKFLOW.OUTPUT.DOC",
+            *(f"SCHEDULING.RESOURCE.{field}" for field in ("coresMin", "ramMin")),
+        }
         assert report.exit_code() == 1

@@ -25,7 +25,15 @@ def document():
         "$graph": [
             {
                 "class": "Workflow",
-                "id": "main",
+                "id": "echo-application",
+                "requirements": {
+                    "ResourceRequirement": {
+                        "coresMin": 1,
+                        "coresMax": 1,
+                        "ramMin": 256,
+                        "ramMax": 256,
+                    }
+                },
                 "label": "Echo",
                 "doc": "Echo a message.",
                 "inputs": {

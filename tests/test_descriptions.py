@@ -38,7 +38,7 @@ def test_entry_output_required(document, write, field, value):
         if f.rule_id == f"EOAP.WORKFLOW.OUTPUT.{field.upper()}"
     )
     assert (finding.status, finding.severity) == ("failed", "error")
-    assert finding.location.path == "main/outputs/result"
+    assert finding.location.path == "echo-application/outputs/result"
     assert finding.location.line is not None
     assert finding.reference is None
     assert report.exit_code() == 1
@@ -85,7 +85,7 @@ def test_documented_fields_pass(document, write):
         f.status == "passed" and f.severity == "info" and f.suggestion is None
         for f in findings
     )
-    assert report.profiles["eoap-package"] == "1.1"
+    assert report.profiles["eoap-package"] == "1.2"
     assert report.exit_code("warning") == 0
 
 
@@ -99,7 +99,7 @@ def test_nested_workflow_scope(document, write):
     workflow["steps"]["echo"]["run"] = "#nested"
     document["$graph"].append(nested)
     path = write(document)
-    report = validate(path + "#main")
+    report = validate(path + "#echo-application")
     assert report.exit_code() == 0, report.to_dict()
     outputs = [f for f in report.findings if f.rule_id == "EOAP.WORKFLOW.OUTPUT.DOC"]
     assert len(outputs) == 1 and outputs[0].status == "passed"

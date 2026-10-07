@@ -15,17 +15,19 @@ def failures(report):
 
 
 def test_valid_combined(document, write):
-    report = validate(write(document) + "#main", profiles=("eoap-package", "metadata"))
+    report = validate(
+        write(document) + "#echo-application", profiles=("eoap-package", "metadata")
+    )
     assert report.exit_code() == 0, report.to_dict()
     assert not failures(report)
-    assert report.entrypoint == "main"
+    assert report.entrypoint == "echo-application"
     assert any(
         f.rule_id == "CWL.VALIDATE" and f.status == "passed" for f in report.findings
     )
 
 
 def test_auto_selection(document, write):
-    assert validate(write(document)).entrypoint == "main"
+    assert validate(write(document)).entrypoint == "echo-application"
 
 
 @pytest.mark.parametrize("fragment", ["", "absent", "echo"])
@@ -40,14 +42,14 @@ def test_ambiguous_selection(document, write):
     second["id"] = "other"
     document["$graph"].append(second)
     assert validate(write(document)).exit_code() == 1
-    assert validate(write(document) + "#main").exit_code() == 0
+    assert validate(write(document) + "#echo-application").exit_code() == 0
 
 
 def test_unreachable_tool_not_checked(document, write):
     document["$graph"].append(
         {"id": "unused", "class": "CommandLineTool", "inputs": [], "outputs": []}
     )
-    report = validate(write(document) + "#main")
+    report = validate(write(document) + "#echo-application")
     assert not failures(report), report.to_dict()
 
 
@@ -79,7 +81,7 @@ def test_version_migration(document, write):
 
 
 def test_inherited_container(document, write):
-    document["$graph"][0]["requirements"] = document["$graph"][1]["requirements"]
+    document["$graph"][0]["requirements"].update(document["$graph"][1]["requirements"])
     document["$graph"][1]["requirements"] = {}
     report = validate(write(document))
     assert report.exit_code() == 0, report.to_dict()
@@ -128,7 +130,7 @@ def test_staging_unknown_and_explicit(document, write):
     report = validate(
         source,
         profiles=("eoap-staging",),
-        staging=StagingConfig(inputs={"main": ["message"]}),
+        staging=StagingConfig(inputs={"echo-application": ["message"]}),
     )
     assert any(f.rule_id == "EOAP.REQ13.INPUT" for f in failures(report))
     report = validate(
@@ -148,12 +150,19 @@ def test_directory_type_unions():
 def test_cli_json_and_file(document, write, tmp_path):
     dest = tmp_path / "report.json"
     result = CliRunner().invoke(
-        main, [write(document) + "#main", "--format", "json", "--output", str(dest)]
+        main,
+        [
+            write(document) + "#echo-application",
+            "--format",
+            "json",
+            "--output",
+            str(dest),
+        ],
     )
     assert result.exit_code == 0, result.output
     payload = json.loads(result.stdout)
     assert payload == json.loads(dest.read_text())
-    assert payload["entrypoint"] == "main"
+    assert payload["entrypoint"] == "echo-application"
 
 
 def test_report_threshold():
@@ -200,7 +209,7 @@ def test_staged_optional_directory_and_output(document, write):
         write(document),
         profiles=("eoap-staging",),
         staging=StagingConfig(
-            inputs={"main": ["message"], "echo": ["message"]},
+            inputs={"echo-application": ["message"], "echo": ["message"]},
             outputs={"echo": ["product"]},
         ),
     )
@@ -215,7 +224,7 @@ def test_source_uri_with_spaces(document, write):
     from pathlib import Path
 
     source = write(document, "a workflow.cwl")
-    assert validate(Path(source).as_uri() + "#main").exit_code() == 0
+    assert validate(Path(source).as_uri() + "#echo-application").exit_code() == 0
 
 
 def test_metadata_quality(document, write):
@@ -254,7 +263,7 @@ def test_loader_limitation_is_not_invalid_cwl(document, write, monkeypatch):
         raise ValueError("Unsupported loader feature")
 
     monkeypatch.setattr(engine, "load_cwl_from_yaml", unsupported)
-    report = validate(write(document) + "#main")
+    report = validate(write(document) + "#echo-application")
     assert report.exit_code() == 2
     assert any(
         f.rule_id == "CWL.VALIDATE" and f.status == "passed" for f in report.findings
