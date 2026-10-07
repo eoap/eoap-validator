@@ -25,7 +25,7 @@ python -m pip install ../cwl-loader .
 ## Validate a workflow
 
 ```sh
-eoap-validator 'workflow.cwl#main' \
+eoap-validator 'workflow.cwl#echo-application' \
   --profile eoap-package \
   --profile metadata \
   --output build/validation.json
@@ -34,7 +34,8 @@ eoap-validator 'workflow.cwl#main' \
 The source accepts local paths, `file:` URIs and HTTP(S) URLs. The fragment selects
 one Workflow; without a fragment, exactly one Workflow must exist in the root
 document. Empty, unknown and non-Workflow selections are errors. There is no
-`--entrypoint` option. Rules inspect the selected reachable graph; parsing and
+`--entrypoint` option. Rules inspect the selected reachable graph, except process IDs are checked
+across all resolved processes; parsing and
 resolution can still encounter invalid declarations elsewhere in the document.
 
 The `eoap-package` profile requires nonempty `label` and `doc` on entry-workflow
@@ -48,10 +49,10 @@ JSON-LD contexts may require network access.
 
 ```sh
 # Machine-readable stdout, including findings and assessment coverage:
-eoap-validator 'workflow.cwl#main' --format json
+eoap-validator 'workflow.cwl#echo-application' --format json
 
 # Make advisory findings fail CI as well:
-eoap-validator 'workflow.cwl#main' --fail-on warning
+eoap-validator 'workflow.cwl#echo-application' --fail-on warning
 ```
 
 An exit status of zero means the selected failure threshold was not exceeded;
@@ -65,13 +66,13 @@ staging. Enable the profile and supply a JSON file identifying staged parameters
 
 ```json
 {
-  "inputs": {"main": ["products"], "processor": ["products"]},
+  "inputs": {"echo-application": ["products"], "processor": ["products"]},
   "outputs": {"processor": ["result"]}
 }
 ```
 
 ```sh
-eoap-validator 'workflow.cwl#main' --profile eoap-package \
+eoap-validator 'workflow.cwl#echo-application' --profile eoap-package \
   --profile eoap-staging --staging staging.json --output validation.json
 ```
 
@@ -86,7 +87,7 @@ review of bindings and execution evidence.
 ```python
 from eoap_validator import validate
 
-report = validate("workflow.cwl#main", profiles=("eoap-package", "metadata"))
+report = validate("workflow.cwl#echo-application", profiles=("eoap-package", "metadata"))
 print(report.to_dict())
 raise SystemExit(report.exit_code())
 ```
@@ -124,3 +125,20 @@ The regression suite includes an attributed fixture from EOEPCA's legacy project
 see [NOTICE](NOTICE). No legacy implementation is vendored.
 
 Licensed under Apache-2.0.
+
+## Mandatory scheduling and process identifier policy
+
+The `eoap-package` profile requires explicit `coresMin`, `coresMax`, `ramMin`,
+and `ramMax` in an effective `ResourceRequirement` under `requirements` for
+every reachable CommandLineTool invocation. Workflow and step requirements
+inherit; a more local ResourceRequirement replaces the inherited one as a whole.
+Hints do not satisfy this policy. Missing fields produce
+`SCHEDULING.RESOURCE.<field>` errors. CWL expressions are accepted as declarations;
+the validator does not evaluate their runtime values.
+
+All resolved Workflows and CommandLineTools, including internal and unreachable
+processes, must use an ID other than `main`. Violations produce
+`SERVICE.PROCESS.ID` errors. Both policies are mandatory profile additions for
+processing-service registration and Calrissian scheduling on Kubernetes, beyond
+strict OGC 20-089r1 conformance. These checks do not run in metadata-only or
+staging-only assessments.

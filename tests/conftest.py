@@ -1,11 +1,21 @@
+from __future__ import annotations
+
 from copy import deepcopy
+from typing import TYPE_CHECKING, Any, Protocol
 
 import pytest
 from ruamel.yaml import YAML
 
+if TYPE_CHECKING:
+    from pathlib import Path
+
+
+class Writer(Protocol):
+    def __call__(self, data: Any, name: str = "workflow.cwl") -> str: ...
+
 
 @pytest.fixture
-def document():
+def document() -> dict[str, Any]:
     return {
         "cwlVersion": "v1.2",
         "$namespaces": {"s": "https://schema.org/"},
@@ -25,7 +35,15 @@ def document():
         "$graph": [
             {
                 "class": "Workflow",
-                "id": "main",
+                "id": "echo-application",
+                "requirements": {
+                    "ResourceRequirement": {
+                        "coresMin": 1,
+                        "coresMax": 1,
+                        "ramMin": 256,
+                        "ramMax": 256,
+                    }
+                },
                 "label": "Echo",
                 "doc": "Echo a message.",
                 "inputs": {
@@ -65,8 +83,8 @@ def document():
 
 
 @pytest.fixture
-def write(tmp_path):
-    def save(data, name="workflow.cwl"):
+def write(tmp_path: Path) -> Writer:
+    def save(data: Any, name: str = "workflow.cwl") -> str:
         path = tmp_path / name
         with path.open("w") as stream:
             YAML().dump(deepcopy(data), stream)

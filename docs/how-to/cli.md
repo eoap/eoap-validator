@@ -13,10 +13,10 @@ eoap-validator --help
 Pass the CWL source and select its entry Workflow using a URI fragment:
 
 ```sh
-eoap-validator 'workflow.cwl#main'
+eoap-validator 'workflow.cwl#echo-application'
 ```
 
-Replace `workflow.cwl` and `main` with your source and Workflow ID. The source
+Replace `workflow.cwl` and `echo-application` with your source and Workflow ID. The source
 accepts local paths, `file:` URIs, and HTTP(S) URLs. You may omit the fragment when
 the root document contains exactly one Workflow. There is no `--entrypoint`
 option.
@@ -31,7 +31,7 @@ Repeat `--profile` to combine checks. For example, check package rules and
 Transpiler-Mate software metadata together:
 
 ```sh
-eoap-validator 'workflow.cwl#main' \
+eoap-validator 'workflow.cwl#echo-application' \
   --profile eoap-package \
   --profile metadata
 ```
@@ -46,13 +46,13 @@ Use `--output` to save the full report while keeping the text output in your
 terminal. Parent directories are created as needed:
 
 ```sh
-eoap-validator 'workflow.cwl#main' --output build/validation.json
+eoap-validator 'workflow.cwl#echo-application' --output build/validation.json
 ```
 
 To print JSON to standard output instead, use `--format json`:
 
 ```sh
-eoap-validator 'workflow.cwl#main' --format json > validation.json
+eoap-validator 'workflow.cwl#echo-application' --format json > validation.json
 ```
 
 Dependency diagnostics go to standard error. The full JSON report includes passed
@@ -65,7 +65,7 @@ as `staging.json`:
 
 ```json
 {
-  "inputs": {"main": ["products"], "processor": ["products"]},
+  "inputs": {"echo-application": ["products"], "processor": ["products"]},
   "outputs": {"processor": ["result"]}
 }
 ```
@@ -75,7 +75,7 @@ normalized process IDs; values are parameter IDs. Unknown IDs fail validation,
 and omitted parameters are not assessed as staged.
 
 ```sh
-eoap-validator 'workflow.cwl#main' \
+eoap-validator 'workflow.cwl#echo-application' \
   --profile eoap-package \
   --profile eoap-staging \
   --staging staging.json
@@ -90,7 +90,7 @@ requires review of bindings and execution evidence.
 The default failure threshold is `error`. To also fail on advisory warnings, use:
 
 ```sh
-eoap-validator 'workflow.cwl#main' --fail-on warning
+eoap-validator 'workflow.cwl#echo-application' --fail-on warning
 ```
 
 | Exit status | Meaning |

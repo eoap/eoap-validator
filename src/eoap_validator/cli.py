@@ -6,13 +6,14 @@ import json
 import sys
 from contextlib import redirect_stdout
 from pathlib import Path
+from typing import Literal
 
 import click
 from loguru import logger
 from pydantic import ValidationError
 
 from .engine import validate
-from .report import PROFILES, StagingConfig
+from .report import PROFILES, Report, StagingConfig
 
 
 @click.command()
@@ -48,7 +49,14 @@ from .report import PROFILES, StagingConfig
     show_default=True,
 )
 @click.version_option("0.1.0")
-def main(source, profiles, staging, output, output_format, fail_on):
+def main(
+    source: str,
+    profiles: tuple[str, ...],
+    staging: Path | None,
+    output: Path | None,
+    output_format: Literal["text", "json"],
+    fail_on: Literal["error", "warning"],
+) -> None:
     """Validate SOURCE, e.g. 'workflow.cwl#main', without executing it."""
     logger.disable("cwl_loader")
     try:
@@ -75,18 +83,27 @@ def main(source, profiles, staging, output, output_format, fail_on):
     if output_format == "json":
         click.echo(rendered)
     else:
-        for finding in report.findings:
-            if finding.status in {"passed", "not-applicable"}:
-                continue
-            loc = finding.location
-            position = f":{loc.line}:{loc.column}" if loc.line is not None else ""
-            click.echo(
-                f"{str(getattr(finding.severity, 'value', finding.severity)).upper()} [{finding.status}] {finding.rule_id}\n"
-                f"  {loc.uri}{position} {loc.path}\n  {finding.message}"
-            )
-            if finding.instance_path:
-                click.echo("  Invocation: " + "/".join(finding.instance_path))
-            if finding.suggestion:
-                click.echo(f"  Fix: {finding.suggestion}")
-        click.echo(f"Assessment: {report.counts}; exit status {code}.")
+        render_text(report, code)
     raise click.exceptions.Exit(code)
+
+
+def render_text(report: Report, code: int) -> None:
+    for finding in report.findings:
+        if getattr(finding.status, "value", finding.status) in {
+            "passed",
+            "not-applicable",
+        }:
+            continue
+        loc = finding.location
+        position = f":{loc.line}:{loc.column}" if loc.line is not None else ""
+        severity = str(getattr(finding.severity, "value", finding.severity)).upper()
+        status = getattr(finding.status, "value", finding.status)
+        click.echo(
+            f"{severity} [{status}] {finding.rule_id}\n"
+            f"  {loc.uri}{position} {loc.path}\n  {finding.message}"
+        )
+        if finding.instance_path:
+            click.echo("  Invocation: " + "/".join(finding.instance_path))
+        if finding.suggestion:
+            click.echo(f"  Fix: {finding.suggestion}")
+    click.echo(f"Assessment: {report.counts}; exit status {code}.")
