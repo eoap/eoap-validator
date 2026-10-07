@@ -2,6 +2,7 @@
 requires = ["hatchling>=1.25"]
 build-backend = "hatchling.build"
 
+
 [project]
 name = "eoap-validator"
 version = "0.2.0"
@@ -9,6 +10,22 @@ description = "Inspect EO Application Packages and Transpiler-Mate metadata."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "Apache-2.0"
+
+keywords = ["EO", "CWL", "validation"]
+
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Intended Audience :: Developers",
+  "Programming Language :: Python",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
+  "Programming Language :: Python :: Implementation :: CPython",
+  "Programming Language :: Python :: Implementation :: PyPy",
+]
+
 dependencies = [
   "cwl-loader>=0.25.1,<1",
   "cwltool>=3.1.20240508115724,<4",
@@ -22,35 +39,297 @@ dependencies = [
   "click>=8.1,<9",
 ]
 
+
+[project.urls]
+Repository = "https://github.com/eoap/eoap-validator"
+
 [project.scripts]
 eoap-validator = "eoap_validator.cli:main"
 
-[project.optional-dependencies]
-test = ["pytest>=8,<10", "ruff>=0.11", "mypy>=1.15", "types-requests", "jsonschema>=4.18,<5"]
+# ---------------------------------------------------------------------------
+# Versioning and packaging
+# ---------------------------------------------------------------------------
 
-[project.urls]
-Repository = "https://github.com/transpiler-mate/eoap-validator"
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src",
+  "/tests",
+  "/schemas",
+  "/typings",
+  "/examples",
+  "/docs",
+  "/Taskfile.yaml",
+  "/LICENSE",
+  "/NOTICE",
+  "/CHANGELOG.md",
+  "/README.md",
+  "/pyproject.toml"
+]
+
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/eoap_validator"]
 
-[tool.hatch.envs.test]
-features = ["test"]
-[tool.hatch.envs.test.scripts]
-test = "pytest {args:tests}"
-check = "ruff check src tests"
-format = "ruff format --check src tests"
-typecheck = "mypy src"
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+
+[tool.ruff]
+target-version = "py310"
+
+
+[tool.ruff.lint]
+select = [
+  # Core correctness
+  "F",      # Pyflakes
+  "E",      # pycodestyle errors
+  "W",      # pycodestyle warnings
+
+  # Imports and modernization
+  "I",      # isort
+  "UP",     # pyupgrade
+  "FA",     # future annotations
+  "TC",     # type-checking imports
+
+  # Bugs and correctness
+  "B",      # flake8-bugbear
+  "RET",    # flake8-return
+  "PTH",    # pathlib usage
+  "C4",     # comprehensions
+
+  # Simplification and readability
+  "SIM",    # flake8-simplify
+
+  # Complexity
+  "C90",    # McCabe complexity
+
+  # Pylint-derived checks
+  "PLE",    # Pylint errors
+  "PLW",    # Pylint warnings
+  "PLR",    # Pylint refactor/design checks
+
+  # Performance and Ruff-specific quality checks
+  "PERF",
+  "RUF",
+]
+
+ignore = [
+  # Formatter-controlled rules
+  "E501",   # line length
+  "W191",   # tab indentation
+  "E111",   # indentation
+  "E114",   # indentation
+  "E117",   # over-indented
+
+  # Too opinionated for a general project template.
+  # Enable per repository if useful.
+  "PLR0904", # too many public methods
+]
+
+
+[tool.ruff.lint.mccabe]
+# New code should remain simple enough to review quickly.
+max-complexity = 7
+
+[tool.ruff.lint.pylint]
+# Keep these deliberately stricter than Pylint defaults.
+max-args = 6
+max-branches = 10
+max-returns = 6
+max-statements = 40
+
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+
+[tool.mypy]
+python_version = "3.10"
+mypy_path = "typings"
+
+# Strict typing is the default for new Terradue Python projects.
+strict = true
+
+# Improve diagnostics.
+pretty = true
+show_error_codes = true
+show_error_context = true
+warn_unreachable = true
+
+# Avoid silently accepting untyped third-party APIs.
+ignore_missing_imports = false
+
+# Files checked by default.
+files = [
+  "src/eoap_validator",
+  "tests",
+]
+
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
-[tool.ruff]
-target-version = "py310"
-[tool.ruff.lint]
-select = ["E4", "E7", "E9", "F", "I", "B", "UP"]
+addopts = [
+  "--strict-config",
+  "--strict-markers",
+]
 
-[tool.mypy]
-python_version = "3.10"
-check_untyped_defs = true
-ignore_missing_imports = true
+xfail_strict = true
+
+
+# ---------------------------------------------------------------------------
+# Coverage
+# ---------------------------------------------------------------------------
+
+[tool.coverage.run]
+source_pkgs = [
+  "eoap_validator",
+]
+
+branch = true
+parallel = true
+
+
+[tool.coverage.paths]
+eoap_validator = [
+  "src/eoap_validator",
+  "*/eoap-validator/src/eoap_validator",
+]
+
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = false
+
+exclude_lines = [
+  "no cov",
+  "if __name__ == .__main__.:",
+  "if TYPE_CHECKING:",
+  "raise NotImplementedError",
+]
+
+
+# ---------------------------------------------------------------------------
+# Hatch: test environment
+# ---------------------------------------------------------------------------
+
+[tool.hatch.envs.test]
+skip-install = false
+features = ["test"]
+
+dependencies = [
+  "pytest>=8.4,<10",
+  "pytest-cov>=6.2,<8",
+]
+
+
+[tool.hatch.envs.test.scripts]
+test = "pytest {args:tests}"
+
+# Preserve commands used by Taskfile.yaml.
+check = "ruff check {args:src tests}"
+format = "ruff format --check {args:src tests}"
+typecheck = "mypy {args:src}"
+
+testv = "pytest --verbose {args:tests}"
+
+test-cov = "pytest --cov=eoap_validator --cov-report=term-missing {args:tests}"
+
+test-show-setup = "pytest --setup-show {args:tests}"
+
+
+# Keep the default test command on the active interpreter; opt into the full matrix.
+[tool.hatch.envs.test-matrix]
+template = "test"
+
+[[tool.hatch.envs.test-matrix.matrix]]
+python = [
+  "3.10",
+  "3.11",
+  "3.12",
+  "3.13",
+  "3.14",
+]
+
+
+# ---------------------------------------------------------------------------
+# Hatch: development and quality environment
+# ---------------------------------------------------------------------------
+
+[tool.hatch.envs.dev]
+skip-install = false
+features = ["test"]
+
+dependencies = [
+  "bandit>=1.7",
+]
+
+
+[tool.hatch.envs.dev.scripts]
+
+# ---------------------------------------------------------------------------
+# Developer commands
+#
+# These commands are allowed to modify files.
+# ---------------------------------------------------------------------------
+
+format = "ruff format {args:src tests}"
+
+fix = [
+  "ruff check --fix {args:src tests}",
+  "ruff format {args:src tests}",
+]
+
+
+# ---------------------------------------------------------------------------
+# Verification commands
+#
+# These commands MUST NOT modify files and are suitable for CI.
+# ---------------------------------------------------------------------------
+
+format-check = "ruff format --check {args:src tests}"
+
+lint = "ruff check {args:src tests}"
+lint-check = "ruff check {args:src tests}"
+design-check = "ruff check --select C90,PLR {args:src tests}"
+
+typecheck = "mypy {args:src tests}"
+
+security = "bandit -r {args:src}"
+
+
+# Run the complete static quality gate.
+quality = [
+  "ruff format --check {args:src tests}",
+  "ruff check {args:src tests}",
+  "mypy {args:src tests}",
+  "bandit -r {args:src}",
+]
+
+
+# Complete local/CI validation including tests.
+check = [
+  "ruff format --check {args:src tests}",
+  "ruff check {args:src tests}",
+  "mypy {args:src tests}",
+  "bandit -r {args:src}",
+  "pytest {args:tests}",
+]
+
+# Provide test extras for editable installations.
+[project.optional-dependencies]
+test = [
+  "pytest>=8,<10",
+  "ruff>=0.11",
+  "mypy>=1.15",
+  "types-requests",
+  "types-jsonschema",
+  "jsonschema>=4.18,<5",
+  "pytest-cov>=6,<8",
+]
