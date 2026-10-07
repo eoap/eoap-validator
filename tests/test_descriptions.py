@@ -1,11 +1,17 @@
+from __future__ import annotations
+
 from copy import deepcopy
+from typing import TYPE_CHECKING, Any
 
 import pytest
 
 from eoap_validator import validate
 
+if TYPE_CHECKING:
+    from conftest import Writer
 
-def with_output(document):
+
+def with_output(document: dict[str, Any]) -> tuple[dict[str, Any], dict[str, Any]]:
     workflow, tool = document["$graph"]
     tool["outputs"] = {
         "result": {"type": "stdout", "label": "Result", "doc": "Echo output."}
@@ -25,7 +31,9 @@ def with_output(document):
 
 @pytest.mark.parametrize("field", ["label", "doc"])
 @pytest.mark.parametrize("value", [None, "", "   "])
-def test_entry_output_required(document, write, field, value):
+def test_entry_output_required(
+    document: dict[str, Any], write: Writer, field: str, value: Any
+) -> None:
     workflow, _ = with_output(document)
     if value is None:
         workflow["outputs"]["result"].pop(field)
@@ -37,7 +45,10 @@ def test_entry_output_required(document, write, field, value):
         for f in report.findings
         if f.rule_id == f"EOAP.WORKFLOW.OUTPUT.{field.upper()}"
     )
-    assert (finding.status, finding.severity) == ("failed", "error")
+    assert (
+        getattr(finding.status, "value", finding.status),
+        getattr(finding.severity, "value", finding.severity),
+    ) == ("failed", "error")
     assert finding.location.path == "echo-application/outputs/result"
     assert finding.location.line is not None
     assert finding.reference is None
@@ -53,7 +64,9 @@ def test_entry_output_required(document, write, field, value):
     ],
 )
 @pytest.mark.parametrize("field", ["label", "doc"])
-def test_recommendations(document, write, target, prefix, field):
+def test_recommendations(
+    document: dict[str, Any], write: Writer, target: str, prefix: str, field: str
+) -> None:
     workflow, tool = with_output(document)
     item = (
         workflow["steps"]["echo"]
@@ -65,14 +78,17 @@ def test_recommendations(document, write, target, prefix, field):
     finding = next(
         f for f in report.findings if f.rule_id == f"{prefix}.{field.upper()}"
     )
-    assert (finding.status, finding.severity) == ("needs-review", "warning")
+    assert (
+        getattr(finding.status, "value", finding.status),
+        getattr(finding.severity, "value", finding.severity),
+    ) == ("needs-review", "warning")
     assert finding.location.line is not None
     assert finding.suggestion
     assert report.exit_code() == 0
     assert report.exit_code("warning") == 1
 
 
-def test_documented_fields_pass(document, write):
+def test_documented_fields_pass(document: dict[str, Any], write: Writer) -> None:
     with_output(document)
     report = validate(write(document))
     findings = [
@@ -80,16 +96,19 @@ def test_documented_fields_pass(document, write):
         for f in report.findings
         if f.rule_id.startswith(("EOAP.WORKFLOW.", "EOAP.CLT."))
     ]
-    assert len(findings) == 8
+    expected_count = 8
+    assert len(findings) == expected_count
     assert all(
-        f.status == "passed" and f.severity == "info" and f.suggestion is None
+        getattr(f.status, "value", f.status) == "passed"
+        and getattr(f.severity, "value", f.severity) == "info"
+        and f.suggestion is None
         for f in findings
     )
     assert report.profiles["eoap-package"] == "1.2"
     assert report.exit_code("warning") == 0
 
 
-def test_nested_workflow_scope(document, write):
+def test_nested_workflow_scope(document: dict[str, Any], write: Writer) -> None:
     workflow, _ = with_output(document)
     nested = deepcopy(workflow)
     nested["id"] = "nested"
@@ -102,10 +121,13 @@ def test_nested_workflow_scope(document, write):
     report = validate(path + "#echo-application")
     assert report.exit_code() == 0, report.to_dict()
     outputs = [f for f in report.findings if f.rule_id == "EOAP.WORKFLOW.OUTPUT.DOC"]
-    assert len(outputs) == 1 and outputs[0].status == "passed"
+    assert (
+        len(outputs) == 1
+        and getattr(outputs[0].status, "value", outputs[0].status) == "passed"
+    )
     assert any(
         f.rule_id == "EOAP.WORKFLOW.STEP.LABEL"
-        and f.status == "needs-review"
+        and getattr(f.status, "value", f.status) == "needs-review"
         and f.location.path == "nested/steps/echo"
         for f in report.findings
     )

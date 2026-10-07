@@ -1,20 +1,33 @@
+from __future__ import annotations
+
 import json
 from copy import deepcopy
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from click.testing import CliRunner
 
 from eoap_validator import StagingConfig, validate
 from eoap_validator.cli import main
+from eoap_validator.models import Severity, Status
 from eoap_validator.report import Finding, Location, Report
 from eoap_validator.rules import directory_type
 
+if TYPE_CHECKING:
+    from pathlib import Path
 
-def failures(report):
-    return [f for f in report.findings if f.status == "failed"]
+    from conftest import Writer
+
+    from eoap_validator.models import Finding as ModelFinding
 
 
-def test_valid_combined(document, write):
+def failures(report: Report) -> list[ModelFinding]:
+    return [
+        f for f in report.findings if getattr(f.status, "value", f.status) == "failed"
+    ]
+
+
+def test_valid_combined(document: dict[str, Any], write: Writer) -> None:
     report = validate(
         write(document) + "#echo-application", profiles=("eoap-package", "metadata")
     )
@@ -22,22 +35,25 @@ def test_valid_combined(document, write):
     assert not failures(report)
     assert report.entrypoint == "echo-application"
     assert any(
-        f.rule_id == "CWL.VALIDATE" and f.status == "passed" for f in report.findings
+        f.rule_id == "CWL.VALIDATE" and getattr(f.status, "value", f.status) == "passed"
+        for f in report.findings
     )
 
 
-def test_auto_selection(document, write):
+def test_auto_selection(document: dict[str, Any], write: Writer) -> None:
     assert validate(write(document)).entrypoint == "echo-application"
 
 
 @pytest.mark.parametrize("fragment", ["", "absent", "echo"])
-def test_invalid_selection(document, write, fragment):
+def test_invalid_selection(
+    document: dict[str, Any], write: Writer, fragment: str
+) -> None:
     report = validate(write(document) + "#" + fragment)
     assert report.exit_code() == 1
     assert any(f.rule_id == "EOAP.ENTRYPOINT" for f in failures(report))
 
 
-def test_ambiguous_selection(document, write):
+def test_ambiguous_selection(document: dict[str, Any], write: Writer) -> None:
     second = deepcopy(document["$graph"][0])
     second["id"] = "other"
     document["$graph"].append(second)
@@ -45,7 +61,7 @@ def test_ambiguous_selection(document, write):
     assert validate(write(document) + "#echo-application").exit_code() == 0
 
 
-def test_unreachable_tool_not_checked(document, write):
+def test_unreachable_tool_not_checked(document: dict[str, Any], write: Writer) -> None:
     document["$graph"].append(
         {"id": "unused", "class": "CommandLineTool", "inputs": [], "outputs": []}
     )
@@ -53,7 +69,9 @@ def test_unreachable_tool_not_checked(document, write):
     assert not failures(report), report.to_dict()
 
 
-def test_missing_metadata_does_not_prevent_package_checks(document, write):
+def test_missing_metadata_does_not_prevent_package_checks(
+    document: dict[str, Any], write: Writer
+) -> None:
     del document["s:author"]
     del document["$graph"][0]["inputs"]["message"]["doc"]
     report = validate(write(document), profiles=("eoap-package", "metadata"))
@@ -64,14 +82,14 @@ def test_missing_metadata_does_not_prevent_package_checks(document, write):
     assert finding.location.line is not None
 
 
-def test_blank_description(document, write):
+def test_blank_description(document: dict[str, Any], write: Writer) -> None:
     document["$graph"][0]["doc"] = "  "
     assert any(
         f.rule_id == "EOAP.REQ9.DOC" for f in failures(validate(write(document)))
     )
 
 
-def test_version_migration(document, write):
+def test_version_migration(document: dict[str, Any], write: Writer) -> None:
     document["s:version"] = document.pop("s:softwareVersion")
     source = write(document)
     assert validate(source).exit_code() == 0
@@ -80,24 +98,27 @@ def test_version_migration(document, write):
     assert any(f.rule_id == "TM.VERSION.MIGRATION" for f in failures(report))
 
 
-def test_inherited_container(document, write):
+def test_inherited_container(document: dict[str, Any], write: Writer) -> None:
     document["$graph"][0]["requirements"].update(document["$graph"][1]["requirements"])
     document["$graph"][1]["requirements"] = {}
     report = validate(write(document))
     assert report.exit_code() == 0, report.to_dict()
 
 
-def test_external_run(document, write):
+def test_external_run(document: dict[str, Any], write: Writer) -> None:
     tool = document["$graph"].pop()
     tool["cwlVersion"] = "v1.2"
     write(tool, "tool.cwl")
     document["$graph"][0]["steps"]["echo"]["run"] = "tool.cwl"
     report = validate(write(document))
     assert report.exit_code() == 0, report.to_dict()
-    assert len(report.dependencies) == 2
+    expected_count = 2
+    assert len(report.dependencies) == expected_count
 
 
-def test_invalid_cwl_still_inspects_metadata(document, write):
+def test_invalid_cwl_still_inspects_metadata(
+    document: dict[str, Any], write: Writer
+) -> None:
     document["cwlVersion"] = "v1.99"
     del document["s:publisher"]
     report = validate(write(document), profiles=("eoap-package", "metadata"))
@@ -109,7 +130,7 @@ def test_invalid_cwl_still_inspects_metadata(document, write):
     assert report.counts["blocked"] > 0
 
 
-def test_malformed_yaml(tmp_path):
+def test_malformed_yaml(tmp_path: Path) -> None:
     path = tmp_path / "bad.cwl"
     path.write_text("cwlVersion: [broken")
     report = validate(str(path), profiles=("metadata",))
@@ -117,11 +138,15 @@ def test_malformed_yaml(tmp_path):
     assert report.counts["blocked"] == 1
 
 
-def test_missing_file(tmp_path):
-    assert validate(str(tmp_path / "missing.cwl")).exit_code() == 2
+def test_missing_file(tmp_path: Path) -> None:
+    operational_failure_exit_code = 2
+    assert (
+        validate(str(tmp_path / "missing.cwl")).exit_code()
+        == operational_failure_exit_code
+    )
 
 
-def test_staging_unknown_and_explicit(document, write):
+def test_staging_unknown_and_explicit(document: dict[str, Any], write: Writer) -> None:
     source = write(document)
     report = validate(source, profiles=("eoap-staging",))
     assert report.counts["needs-review"] > 0
@@ -141,13 +166,15 @@ def test_staging_unknown_and_explicit(document, write):
     assert any(f.rule_id == "EOAP.STAGING.TARGET" for f in failures(report))
 
 
-def test_directory_type_unions():
+def test_directory_type_unions() -> None:
     assert directory_type(["null", "Directory"])
     assert not directory_type(["Directory", "string"])
     assert not directory_type(["null"])
 
 
-def test_cli_json_and_file(document, write, tmp_path):
+def test_cli_json_and_file(
+    document: dict[str, Any], write: Writer, tmp_path: Path
+) -> None:
     dest = tmp_path / "report.json"
     result = CliRunner().invoke(
         main,
@@ -165,15 +192,15 @@ def test_cli_json_and_file(document, write, tmp_path):
     assert payload["entrypoint"] == "echo-application"
 
 
-def test_report_threshold():
+def test_report_threshold() -> None:
     report = Report(
         source="file:///example.cwl",
         findings=[
             Finding(
                 rule_id="test",
                 profile="test",
-                status="blocked",
-                severity="error",
+                status=Status.BLOCKED,
+                severity=Severity.ERROR,
                 message="Blocked by another finding",
                 location=Location(uri="file:///example.cwl"),
             )
@@ -182,20 +209,23 @@ def test_report_threshold():
     assert report.counts["passed"] == 0
 
 
-def test_bad_configuration():
+def test_bad_configuration() -> None:
     with pytest.raises(ValueError):
         validate("unused.cwl", profiles=("unknown",))
     with pytest.raises(ValueError):
         validate("unused.cwl", staging=StagingConfig())
 
 
-def test_missing_external_dependency(document, write):
+def test_missing_external_dependency(document: dict[str, Any], write: Writer) -> None:
     document["$graph"][0]["steps"]["echo"]["run"] = "missing.cwl"
     report = validate(write(document))
-    assert report.exit_code() == 2, report.to_dict()
+    operational_failure_exit_code = 2
+    assert report.exit_code() == operational_failure_exit_code, report.to_dict()
 
 
-def test_staged_optional_directory_and_output(document, write):
+def test_staged_optional_directory_and_output(
+    document: dict[str, Any], write: Writer
+) -> None:
     for process in document["$graph"]:
         process["inputs"]["message"] = {
             "type": ["null", "Directory"],
@@ -215,29 +245,31 @@ def test_staged_optional_directory_and_output(document, write):
     )
     assert not failures(report), report.to_dict()
     assert any(
-        f.rule_id == "EOAP.REQ14.COVERAGE" and f.status == "needs-review"
+        f.rule_id == "EOAP.REQ14.COVERAGE"
+        and getattr(f.status, "value", f.status) == "needs-review"
         for f in report.findings
     )
 
 
-def test_source_uri_with_spaces(document, write):
+def test_source_uri_with_spaces(document: dict[str, Any], write: Writer) -> None:
     from pathlib import Path
 
     source = write(document, "a workflow.cwl")
     assert validate(Path(source).as_uri() + "#echo-application").exit_code() == 0
 
 
-def test_metadata_quality(document, write):
+def test_metadata_quality(document: dict[str, Any], write: Writer) -> None:
     document["s:author"] = []
     document["s:description"] = " "
     document["s:softwareHelp"] = {"s:name": "Guide without URL"}
     report = validate(write(document), profiles=("metadata",))
     assert report.exit_code() == 0, report.to_dict()
     assert report.exit_code("warning") == 1
-    assert report.counts["needs-review"] >= 3
+    expected_count = 3
+    assert report.counts["needs-review"] >= expected_count
 
 
-def test_inherited_hint_is_advisory(document, write):
+def test_inherited_hint_is_advisory(document: dict[str, Any], write: Writer) -> None:
     document["$graph"][0]["hints"] = document["$graph"][1]["requirements"]
     document["$graph"][1]["requirements"] = {}
     report = validate(write(document))
@@ -245,7 +277,9 @@ def test_inherited_hint_is_advisory(document, write):
     assert any(f.rule_id == "EOAP.CONTAINER.HINT" for f in report.findings)
 
 
-def test_two_invocations_preserve_container_context(document, write):
+def test_two_invocations_preserve_container_context(
+    document: dict[str, Any], write: Writer
+) -> None:
     document["$graph"][1]["requirements"] = {}
     first = document["$graph"][0]["steps"]["echo"]
     second = deepcopy(first)
@@ -253,33 +287,43 @@ def test_two_invocations_preserve_container_context(document, write):
     document["$graph"][0]["steps"]["other"] = second
     report = validate(write(document))
     docker = [f for f in report.findings if f.rule_id == "EOAP.REQ8.DOCKER"]
-    assert {f.status for f in docker} == {"passed", "failed"}
+    assert {getattr(f.status, "value", f.status) for f in docker} == {
+        "passed",
+        "failed",
+    }
 
 
-def test_loader_limitation_is_not_invalid_cwl(document, write, monkeypatch):
+def test_loader_limitation_is_not_invalid_cwl(
+    document: dict[str, Any], write: Writer, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from eoap_validator import engine
 
-    def unsupported(*args, **kwargs):
+    def unsupported(*args: Any, **kwargs: Any) -> None:
         raise ValueError("Unsupported loader feature")
 
     monkeypatch.setattr(engine, "load_cwl_from_yaml", unsupported)
     report = validate(write(document) + "#echo-application")
-    assert report.exit_code() == 2
+    operational_failure_exit_code = 2
+    assert report.exit_code() == operational_failure_exit_code
     assert any(
-        f.rule_id == "CWL.VALIDATE" and f.status == "passed" for f in report.findings
+        f.rule_id == "CWL.VALIDATE" and getattr(f.status, "value", f.status) == "passed"
+        for f in report.findings
     )
 
 
-def test_cwl_type_mismatch(document, write):
+def test_cwl_type_mismatch(document: dict[str, Any], write: Writer) -> None:
     document["$graph"][1]["inputs"]["message"] = "int"
     report = validate(write(document))
     assert report.exit_code() == 1
     assert any(
-        f.rule_id == "CWL.VALIDATE" and f.status == "failed" for f in report.findings
+        f.rule_id == "CWL.VALIDATE" and getattr(f.status, "value", f.status) == "failed"
+        for f in report.findings
     )
 
 
-def test_network_failure_is_incomplete(document, write, monkeypatch):
+def test_network_failure_is_incomplete(
+    document: dict[str, Any], write: Writer, monkeypatch: pytest.MonkeyPatch
+) -> None:
     from eoap_validator import engine
 
     monkeypatch.setattr(
@@ -291,20 +335,27 @@ def test_network_failure_is_incomplete(document, write, monkeypatch):
         ),
     )
     report = validate(write(document))
-    assert report.exit_code() == 2
+    operational_failure_exit_code = 2
+    assert report.exit_code() == operational_failure_exit_code
     assert any(
-        f.rule_id == "CWL.VALIDATE" and f.status == "blocked" for f in report.findings
+        f.rule_id == "CWL.VALIDATE"
+        and getattr(f.status, "value", f.status) == "blocked"
+        for f in report.findings
     )
 
 
-def test_invalid_cli_json_is_not_polluted(document, write):
+def test_invalid_cli_json_is_not_polluted(
+    document: dict[str, Any], write: Writer
+) -> None:
     document["cwlVersion"] = "v1.99"
     result = CliRunner().invoke(main, [write(document), "--format", "json"])
     assert result.exit_code == 1
     assert json.loads(result.stdout)["exit_code"] == 1
 
 
-def test_successful_results_describe_observations(document, write):
+def test_successful_results_describe_observations(
+    document: dict[str, Any], write: Writer
+) -> None:
     report = validate(write(document), profiles=("eoap-package", "metadata"))
     passed = [f for f in report.to_dict()["findings"] if f["status"] == "passed"]
     assert passed
@@ -319,27 +370,38 @@ def test_successful_results_describe_observations(document, write):
     assert report.exit_code("warning") == 0
 
 
-def test_failure_and_review_severities_are_preserved(document, write):
+def test_failure_and_review_severities_are_preserved(
+    document: dict[str, Any], write: Writer
+) -> None:
     tool = document["$graph"][1]
     tool["hints"] = tool.pop("requirements")
     report = validate(write(document))
     declaration = next(
         f for f in report.findings if f.rule_id == "EOAP.REQ8.REQUIREMENTS.DECLARED"
     )
-    assert declaration.status == "failed"
-    assert declaration.severity == "error"
+    assert getattr(declaration.status, "value", declaration.status) == "failed"
+    assert getattr(declaration.severity, "value", declaration.severity) == "error"
     assert declaration.suggestion
     review = next(f for f in report.findings if f.rule_id == "EOAP.CONTAINER.HINT")
-    assert review.status == "needs-review"
-    assert review.severity == "warning"
+    assert getattr(review.status, "value", review.status) == "needs-review"
+    assert getattr(review.severity, "value", review.severity) == "warning"
     assert report.exit_code() == 1
 
 
-def test_inapplicable_results_are_informational(document, write):
+def test_inapplicable_results_are_informational(
+    document: dict[str, Any], write: Writer
+) -> None:
     report = validate(
         write(document), profiles=("eoap-staging",), staging=StagingConfig()
     )
-    inapplicable = [f for f in report.findings if f.status == "not-applicable"]
+    inapplicable = [
+        f
+        for f in report.findings
+        if getattr(f.status, "value", f.status) == "not-applicable"
+    ]
     assert inapplicable
-    assert all(f.severity == "info" and f.suggestion is None for f in inapplicable)
+    assert all(
+        getattr(f.severity, "value", f.severity) == "info" and f.suggestion is None
+        for f in inapplicable
+    )
     assert report.exit_code("warning") == 0

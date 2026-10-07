@@ -1,8 +1,11 @@
 """The checked-in JSON Schema describes actual CLI and library output."""
 
+from __future__ import annotations
+
 import json
 from copy import deepcopy
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from click.testing import CliRunner
@@ -13,9 +16,12 @@ from ruamel.yaml import YAML
 from eoap_validator import models, validate
 from eoap_validator.cli import main
 
+if TYPE_CHECKING:
+    from conftest import Writer
+
 
 @pytest.fixture
-def schema_validator():
+def schema_validator() -> Draft202012Validator:
     schema = YAML(typ="safe").load(Path(__file__).parents[1] / "schemas/report.yaml")
     Draft202012Validator.check_schema(schema)
     return Draft202012Validator(schema)
@@ -24,7 +30,13 @@ def schema_validator():
 @pytest.mark.parametrize(
     "case", ["valid", "missing_metadata", "warning", "unreadable", "malformed"]
 )
-def test_reports_match_schema(document, write, tmp_path, schema_validator, case):
+def test_reports_match_schema(
+    document: dict[str, Any],
+    write: Writer,
+    tmp_path: Path,
+    schema_validator: Draft202012Validator,
+    case: str,
+) -> None:
     if case == "missing_metadata":
         document.pop("s:author")
     elif case == "warning":
@@ -44,7 +56,12 @@ def test_reports_match_schema(document, write, tmp_path, schema_validator, case)
         assert sum(payload["counts"].values()) == len(payload["findings"])
 
 
-def test_cli_report_and_aliases(document, write, tmp_path, schema_validator):
+def test_cli_report_and_aliases(
+    document: dict[str, Any],
+    write: Writer,
+    tmp_path: Path,
+    schema_validator: Draft202012Validator,
+) -> None:
     document["s:description"] = " "
     output = tmp_path / "report.json"
     result = CliRunner().invoke(
@@ -73,7 +90,12 @@ def test_cli_report_and_aliases(document, write, tmp_path, schema_validator):
 @pytest.mark.parametrize(
     "mutation", ["counts", "exit_code", "severity", "line", "extra"]
 )
-def test_schema_rejects_invalid_reports(document, write, schema_validator, mutation):
+def test_schema_rejects_invalid_reports(
+    document: dict[str, Any],
+    write: Writer,
+    schema_validator: Draft202012Validator,
+    mutation: str,
+) -> None:
     payload = deepcopy(validate(write(document)).to_dict())
     if mutation == "counts":
         payload["counts"]["passed"] = -1
@@ -89,7 +111,7 @@ def test_schema_rejects_invalid_reports(document, write, schema_validator, mutat
         schema_validator.validate(payload)
 
 
-def test_generated_collection_defaults_are_independent():
+def test_generated_collection_defaults_are_independent() -> None:
     first = models.ReportData(source="file:///a.cwl")
     second = models.ReportData(source="file:///b.cwl")
     first.dependencies.append("file:///tool.cwl")

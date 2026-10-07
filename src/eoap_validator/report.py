@@ -6,6 +6,7 @@ Regenerate models.py with Task; keep executable policy in this module.
 from __future__ import annotations
 
 from collections import Counter
+from dataclasses import dataclass
 from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_serializer, model_validator
@@ -17,6 +18,15 @@ Status = Literal["passed", "failed", "needs-review", "not-applicable", "blocked"
 Severity = Literal["error", "warning", "info"]
 Profile = Literal["eoap-package", "eoap-staging", "metadata"]
 PROFILES = ("eoap-package", "eoap-staging", "metadata")
+
+
+@dataclass(frozen=True)
+class Advice:
+    severity: Severity = "error"
+    suggestion: str | None = None
+
+
+DEFAULT_ADVICE = Advice()
 
 
 class Finding(models.Finding):
@@ -48,7 +58,9 @@ class Report(models.ReportData):
     model_config = ConfigDict(extra="forbid")
 
     @field_serializer("findings")
-    def serialize_findings(self, findings):
+    def serialize_findings(
+        self, findings: list[models.Finding]
+    ) -> list[dict[str, Any]]:
         # Use each finding's serializer, including the runtime enum-value policy.
         return [finding.model_dump(mode="json", by_alias=True) for finding in findings]
 
@@ -74,7 +86,7 @@ class Report(models.ReportData):
             )
         )
 
-    def to_dict(self, fail_on: Literal["error", "warning"] = "error") -> dict:
+    def to_dict(self, fail_on: Literal["error", "warning"] = "error") -> dict[str, Any]:
         payload = {
             **self.model_dump(mode="json", by_alias=True),
             "counts": self.counts,

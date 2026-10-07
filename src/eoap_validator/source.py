@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote, urldefrag, urlparse
+from urllib.parse import unquote, urldefrag, urljoin, urlparse
 
 import requests
 from ruamel.yaml import YAML
@@ -13,7 +13,7 @@ from .report import Location
 
 
 class Source:
-    def __init__(self, uri: str, data: Any):
+    def __init__(self, uri: str, data: Any) -> None:
         self.uri = uri
         self.data = data
 
@@ -71,29 +71,29 @@ def missing_local_references(source: Source) -> list[str]:
     Remote fetch errors remain the resolver's responsibility. This is not a
     recursive dependency manifest or a replacement for schema-salad resolution.
     """
-    from urllib.parse import urljoin
-
     missing: list[str] = []
 
-    def walk(value, base):
-        if isinstance(value, list):
-            for item in value:
-                walk(item, base)
-        elif isinstance(value, dict):
-            base = urljoin(base, str(value.get("$base", base)))
-            for key, item in value.items():
-                is_reference = key in ("$import", "$include") or (
-                    key == "run" and "in" in value
-                )
-                if is_reference and isinstance(item, str) and not item.startswith("#"):
-                    target = urldefrag(urljoin(base, item))[0]
-                    parsed = urlparse(target)
-                    if (
-                        parsed.scheme == "file"
-                        and not Path(unquote(parsed.path)).is_file()
-                    ):
-                        missing.append(target)
-                walk(item, base)
-
-    walk(source.data, source.uri)
+    walk_references(source.data, source.uri, missing)
     return sorted(set(missing))
+
+
+def unavailable_file(uri: str) -> bool:
+    parsed = urlparse(uri)
+    return parsed.scheme == "file" and not Path(unquote(parsed.path)).is_file()
+
+
+def walk_references(value: Any, base: str, missing: list[str]) -> None:
+    if isinstance(value, list):
+        for item in value:
+            walk_references(item, base, missing)
+    elif isinstance(value, dict):
+        base = urljoin(base, str(value.get("$base", base)))
+        for key, item in value.items():
+            is_reference = key in ("$import", "$include") or (
+                key == "run" and "in" in value
+            )
+            if is_reference and isinstance(item, str) and not item.startswith("#"):
+                target = urldefrag(urljoin(base, item))[0]
+                if unavailable_file(target):
+                    missing.append(target)
+            walk_references(item, base, missing)
