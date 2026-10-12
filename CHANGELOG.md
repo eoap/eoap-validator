@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-12
+
+### Fixed
+
+- Allow `transpiler-mate-api>=1.0.1,<2` to resolve the dependency conflict
+  with Transpiler-Mate Runtime 1.3.1.
+
 ## [0.3.0] - 2026-10-12
 
 ### Added
