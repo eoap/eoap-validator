@@ -132,7 +132,7 @@ $defs:
         title: Schema Version
         type: string
       validator_version:
-        default: 0.1.0
+        default: 0.3.0
         title: Validator Version
         type: string
       source:

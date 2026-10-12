@@ -1,8 +1,7 @@
 # Profiles and reporting contract
 
 Report schema is `1.0`; `eoap-package` is revision `1.3` and other profiles
-remain at `1.0`. Validator version starts at
-`0.1.0`. Reports include the installed cwltool, cwl-loader and API versions.
+remain at `1.0`. Validator version is `0.3.0`. Reports include the installed cwltool, cwl-loader and API versions.
 Profile changes that alter acceptance behavior require a profile revision.
 
 ## CWL foundation
