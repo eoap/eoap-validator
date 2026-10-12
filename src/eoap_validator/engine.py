@@ -22,6 +22,7 @@ from .report import PROFILES, Finding, Location, Report, Severity, StagingConfig
 from .report import Status as FindingStatus
 from .rules import Context, PackageRules, reachable
 from .source import Source, missing_local_references, source_uri
+from .standalone import standalone_checks
 
 
 def add(
@@ -152,7 +153,7 @@ def validate(
         dependencies=[uri],
     )
     if "eoap-package" in selected_profiles:
-        report.profiles["eoap-package"] = "1.2"
+        report.profiles["eoap-package"] = "1.3"
     record_versions(report)
     source = read_source(report, selected_profiles)
     if source is None or not inspect_dependencies(source, report, selected_profiles):
@@ -204,6 +205,8 @@ def inspect_dependencies(
     source: Source, report: Report, selected_profiles: set[str]
 ) -> bool:
     report.findings.extend(metadata_checks(source, selected_profiles))
+    if "eoap-package" in selected_profiles:
+        report.findings.extend(standalone_checks(source))
     missing = missing_local_references(source)
     if missing:
         report.operational_failure = True

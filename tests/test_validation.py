@@ -111,7 +111,8 @@ def test_external_run(document: dict[str, Any], write: Writer) -> None:
     write(tool, "tool.cwl")
     document["$graph"][0]["steps"]["echo"]["run"] = "tool.cwl"
     report = validate(write(document))
-    assert report.exit_code() == 0, report.to_dict()
+    assert report.exit_code() == 1, report.to_dict()
+    assert any(f.rule_id == "EOAP.PROCESS.EXTERNAL_REFERENCE" for f in failures(report))
     expected_count = 2
     assert len(report.dependencies) == expected_count
 
