@@ -48,7 +48,7 @@ from .report import PROFILES, Report, StagingConfig
     default="error",
     show_default=True,
 )
-@click.version_option("0.1.0")
+@click.version_option(package_name="eoap-validator")
 def main(
     source: str,
     profiles: tuple[str, ...],

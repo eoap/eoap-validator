@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-12
+
+### Added
+
+- Standalone CWL packaging checks reject local schema imports and external
+  process references with source locations and actionable corrections. Absolute
+  HTTP(S) schema imports remain allowed. Package profile revision is now 1.3.
+
+### Fixed
+
+- CLI version output uses installed package metadata; report schema and generated
+  model defaults now identify validator version 0.3.0.
+
+## [0.2.0] - 2026-10-07
+
 ### Added
 
 - JSON Schema for the complete output report in `schemas/report.yaml` and

@@ -15,13 +15,6 @@ python -m pip install .
 eoap-validator --help
 ```
 
-This initial checkout requires the accompanying **cwl-loader 0.25.1** file-URI fix.
-Until that release is published, install both source checkouts together:
-
-```sh
-python -m pip install ../cwl-loader .
-```
-
 ## Validate a workflow
 
 ```sh
@@ -41,6 +34,11 @@ resolution can still encounter invalid declarations elsewhere in the document.
 The `eoap-package` profile requires nonempty `label` and `doc` on entry-workflow
 outputs. It recommends these fields on reachable workflow steps and on
 CommandLineTool inputs and outputs; missing recommendations produce warnings.
+
+The `eoap-package` profile requires a single CWL document: inline local custom
+schema definitions and embed tools and subworkflows inline or in `$graph`, using
+internal `#id` references. Absolute HTTP(S) schema imports remain allowed.
+External process references, including remote CWL files, are rejected.
 
 The default profile is `eoap-package`. CWL checks always run. A package that lacks
 Transpiler-Mate metadata can still receive EOAP findings. No workflow is executed

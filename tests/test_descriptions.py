@@ -104,7 +104,7 @@ def test_documented_fields_pass(document: dict[str, Any], write: Writer) -> None
         and f.suggestion is None
         for f in findings
     )
-    assert report.profiles["eoap-package"] == "1.2"
+    assert report.profiles["eoap-package"] == "1.3"
     assert report.exit_code("warning") == 0
 
 

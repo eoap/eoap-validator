@@ -84,7 +84,7 @@ class ReportData(BaseModel):
         populate_by_name=True,
     )
     schema_version: Annotated[str, Field(title="Schema Version")] = "1.0"
-    validator_version: Annotated[str, Field(title="Validator Version")] = "0.1.0"
+    validator_version: Annotated[str, Field(title="Validator Version")] = "0.3.0"
     source: Annotated[str, Field(title="Source")]
     entrypoint: Annotated[str | None, Field(title="Entrypoint")] = None
     profiles: Annotated[dict[str, str], Field(title="Profiles")] = {}
@@ -112,7 +112,7 @@ class Report(ReportData):
     exit_code: Annotated[int, Field(ge=0, le=2)] = 0
     fail_on: FailOn = FailOn.ERROR
     schema_version: Annotated[str, Field(title="Schema Version")] = "1.0"
-    validator_version: Annotated[str, Field(title="Validator Version")] = "0.1.0"
+    validator_version: Annotated[str, Field(title="Validator Version")] = "0.3.0"
     source: Annotated[str, Field(title="Source")]
     entrypoint: Annotated[str | None, Field(title="Entrypoint")] = None
     profiles: Annotated[dict[str, str], Field(title="Profiles")] = {}
