@@ -4,6 +4,10 @@
 
 ### Added
 
+- Standalone CWL packaging checks reject local schema imports and external
+  process references with source locations and actionable corrections. Absolute
+  HTTP(S) schema imports remain allowed. Package profile revision is now 1.3.
+
 - JSON Schema for the complete output report in `schemas/report.yaml` and
   generated Pydantic models produced by `task generate_ms_skeleton`.
 - Schema validation tests for successful, failed, advisory and incomplete reports.

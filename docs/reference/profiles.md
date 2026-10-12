@@ -1,6 +1,6 @@
 # Profiles and reporting contract
 
-Report schema is `1.0`; `eoap-package` is revision `1.2` and other profiles
+Report schema is `1.0`; `eoap-package` is revision `1.3` and other profiles
 remain at `1.0`. Validator version starts at
 `0.1.0`. Reports include the installed cwltool, cwl-loader and API versions.
 Profile changes that alter acceptance behavior require a profile revision.
@@ -149,3 +149,23 @@ processes, must use an ID other than `main`. Violations produce
 processing-service registration and Calrissian scheduling on Kubernetes, beyond
 strict OGC 20-089r1 conformance. These checks do not run in metadata-only or
 staging-only assessments.
+
+## Standalone CWL document policy
+
+The `eoap-package` profile requires schema and process definitions to reside in
+the application CWL document. Absolute HTTP(S) schema imports are an exception.
+Local `$import` entries in `SchemaDefRequirement` produce
+`EOAP.SCHEMA.LOCAL_IMPORT` errors: replace them with inline type definitions.
+Relative references remain prohibited even when a remote `$base` resolves them.
+
+Workflow step `run` references to external CommandLineTool or Workflow files
+produce `EOAP.PROCESS.EXTERNAL_REFERENCE` errors. HTTP(S) process references,
+`$import` wrappers, imported `$graph` entries and root process imports are also
+rejected. Embed the process inline or in `$graph` and use `#id`.
+These checks cover every declaration in the original document, including
+unreachable processes, requirements, hints and embedded workflows. They run
+before dependency resolution, so unavailable files cannot hide policy failures.
+Other `$include` declarations and runtime file inputs are outside these checks.
+Missing dependencies still produce operational failures (exit code 2), alongside
+the actionable single-file policy errors. Existing external files produce
+validation failures (exit code 1) when assessment otherwise completes.
