@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Added
+
+- Add Python 3.15 support.
+
+### Removed
+
+- Remove Python 3.10 support now that the interpreter has reached end of life.
+
 ## [0.3.1] - 2026-10-12
 
 ### Fixed

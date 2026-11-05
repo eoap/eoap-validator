@@ -1,6 +1,6 @@
 # Use the CLI
 
-Install EOAP Validator with Python 3.10 or newer, following the
+Install EOAP Validator with Python 3.11 through 3.15, following the
 [README installation instructions](https://github.com/eoap/eoap-validator#install).
 Check the available options with:
 
