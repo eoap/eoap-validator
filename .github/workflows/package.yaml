@@ -64,4 +64,4 @@ jobs:
           python -m pip install --no-deps .
           python -c 'import os, importlib.metadata; assert os.environ["RELEASE_TAG"] == "v" + importlib.metadata.version("eoap-validator")'
       - run: python -m build
-      - uses: pypa/gh-action-pypi-publish@v1.14.2
+      - uses: pypa/gh-action-pypi-publish@v1.14.3
