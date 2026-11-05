@@ -12,6 +12,13 @@ validates the selected original URI, preserving relative-reference semantics.
 If the loader fails, cwltool is also consulted: a document accepted by cwltool
 but unsupported by the loader is an incomplete assessment, not invalid CWL.
 
+Unknown mandatory CWL requirements remain invalid by default. The CLI option
+`--enable-dask-gateway` explicitly registers the bundled Calrissian
+`DaskGatewayRequirement` schema with cwltool for validation. The shared loader
+preserves the namespaced requirement payload opaquely during normalization; it
+does not perform extension-specific validation. Enabling the schema validates
+the static document only and does not imply runtime or execution support.
+
 Entrypoint selection is mandatory when multiple root-document Workflows exist.
 Rules evaluate reachable processes, preserving invocation-specific inherited
 requirements and hints. Parser and loader limitations may block inspection.

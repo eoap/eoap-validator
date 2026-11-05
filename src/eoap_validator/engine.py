@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from copy import deepcopy
 from importlib.metadata import PackageNotFoundError, version
 from io import StringIO
+from threading import RLock
 from typing import Any
 from urllib.parse import urldefrag
 
@@ -23,6 +25,9 @@ from .report import Status as FindingStatus
 from .rules import Context, PackageRules, reachable
 from .source import Source, missing_local_references, source_uri
 from .standalone import standalone_checks
+
+SchemaCallback = Callable[[], None]
+_CWLTOOL_LOCK = RLock()
 
 
 def add(
@@ -53,21 +58,25 @@ def blocked(report: Report, profiles: set[str], reason: str) -> None:
         )
 
 
-def validate_cwl(uri: str) -> tuple[bool, str]:
+def validate_cwl(
+    uri: str, custom_schema_callback: SchemaCallback | None = None
+) -> tuple[bool, str]:
     stdout, stderr = StringIO(), StringIO()
     # cwltool configures its logger. Restore handlers so embedding this library
     # does not leave a closed/captured stream attached to the host application.
-    logger = logging.getLogger("cwltool")
-    handlers, level = logger.handlers[:], logger.level
-    try:
-        code = cwltool_main(
-            ["--quiet", "--disable-color", "--validate", uri],
-            stdout=stdout,
-            stderr=stderr,
-        )
-    finally:
-        logger.handlers = handlers
-        logger.setLevel(level)
+    with _CWLTOOL_LOCK:
+        logger = logging.getLogger("cwltool")
+        handlers, level = logger.handlers[:], logger.level
+        try:
+            code = cwltool_main(
+                ["--quiet", "--disable-color", "--validate", uri],
+                stdout=stdout,
+                stderr=stderr,
+                custom_schema_callback=custom_schema_callback,
+            )
+        finally:
+            logger.handlers = handlers
+            logger.setLevel(level)
     return code == 0, stderr.getvalue() or stdout.getvalue()
 
 
@@ -134,6 +143,7 @@ def validate(
     *,
     profiles: tuple[str, ...] = ("eoap-package",),
     staging: StagingConfig | None = None,
+    custom_schema_callback: SchemaCallback | None = None,
 ) -> Report:
     """Inspect a local/HTTP(S) CWL source; validation failures return a report.
 
@@ -158,10 +168,23 @@ def validate(
     source = read_source(report, selected_profiles)
     if source is None or not inspect_dependencies(source, report, selected_profiles):
         return report
-    processes = resolve_processes(source, report, selected_profiles, fragment)
+    processes = resolve_processes(
+        source,
+        report,
+        selected_profiles,
+        fragment,
+        custom_schema_callback,
+    )
     if processes is None:
         return report
-    contexts = select_contexts(source, processes, report, selected_profiles, fragment)
+    contexts = select_contexts(
+        source,
+        processes,
+        report,
+        selected_profiles,
+        fragment,
+        custom_schema_callback,
+    )
     if contexts is not None:
         assess_contexts(source, processes, contexts, report, selected_profiles, staging)
     return report
@@ -228,7 +251,11 @@ def inspect_dependencies(
 
 
 def resolution_failure(
-    exc: Exception, report: Report, selected_profiles: set[str], fragment: str | None
+    exc: Exception,
+    report: Report,
+    selected_profiles: set[str],
+    fragment: str | None,
+    custom_schema_callback: SchemaCallback | None,
 ) -> None:
     uri = report.source
     report.operational_failure = operational(exc)
@@ -236,7 +263,8 @@ def resolution_failure(
         # A limitation of our normalizing loader is not evidence of invalid CWL.
         try:
             valid, diagnostics = validate_cwl(
-                uri + ("#" + fragment if fragment else "")
+                uri + ("#" + fragment if fragment else ""),
+                custom_schema_callback,
             )
             add(
                 report,
@@ -264,7 +292,11 @@ def resolution_failure(
 
 
 def resolve_processes(
-    source: Source, report: Report, selected_profiles: set[str], fragment: str | None
+    source: Source,
+    report: Report,
+    selected_profiles: set[str],
+    fragment: str | None,
+    custom_schema_callback: SchemaCallback | None,
 ) -> list[Any] | None:
     uri = report.source
     try:
@@ -272,7 +304,13 @@ def resolve_processes(
             session.mount("file://", FileAdapter())
             loaded = load_cwl_from_yaml(deepcopy(source.data), uri=uri, session=session)
     except Exception as exc:
-        resolution_failure(exc, report, selected_profiles, fragment)
+        resolution_failure(
+            exc,
+            report,
+            selected_profiles,
+            fragment,
+            custom_schema_callback,
+        )
         return None
     processes = loaded if isinstance(loaded, list) else [loaded]
     index = {p.id: p for p in processes}
@@ -298,6 +336,7 @@ def select_contexts(
     report: Report,
     selected_profiles: set[str],
     fragment: str | None,
+    custom_schema_callback: SchemaCallback | None,
 ) -> list[Context] | None:
     uri = report.source
     index = {p.id: p for p in processes}
@@ -313,7 +352,7 @@ def select_contexts(
         return None
     report.entrypoint = root.id
     try:
-        valid, diagnostics = validate_cwl(f"{uri}#{root.id}")
+        valid, diagnostics = validate_cwl(f"{uri}#{root.id}", custom_schema_callback)
         add(
             report,
             "CWL.VALIDATE",
