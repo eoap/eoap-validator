@@ -2,13 +2,27 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-05
+
 ### Added
 
+- Opt-in validation of the Calrissian Dask Gateway requirement through
+  `--enable-dask-gateway`, backed by a bundled trusted CWL schema.
+- A Python API callback for registering trusted CWL schemas for a validation.
 - Add Python 3.15 support.
 
-### Removed
+### Changed
 
-- Remove Python 3.10 support now that the interpreter has reached end of life.
+- Supported Python versions are now 3.11 through 3.15.
+- Remove Python 3.10 support after the interpreter reached end of life.
+
+### Fixed
+
+- Validate anonymous root workflows at their absolute document URI while still
+  reporting the separate EOAP policy requiring an explicit source ID.
+- Scope trusted schema registration to the validation that requested it and
+  serialize embedded cwltool access to prevent schema state leaking between
+  concurrent validations.
 
 ## [0.3.1] - 2026-10-12
 

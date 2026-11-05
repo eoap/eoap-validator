@@ -15,6 +15,7 @@ from eoap_validator.report import Report
 
 def test_release_version_consistency() -> None:
     installed = version("eoap-validator")
+    assert installed == "0.4.0"
     result = CliRunner().invoke(main, ["--version"])
     assert result.exit_code == 0
     assert result.output.strip().endswith(installed)
@@ -28,3 +29,5 @@ def test_release_version_consistency() -> None:
         schema["$defs"]["ReportData"]["properties"]["validator_version"]["default"]
         == installed
     )
+    profiles_path = Path(__file__).resolve().parents[1] / "docs/reference/profiles.md"
+    assert f"Validator version is `{installed}`." in profiles_path.read_text()
