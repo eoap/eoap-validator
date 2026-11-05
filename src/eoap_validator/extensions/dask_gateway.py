@@ -6,10 +6,9 @@ from importlib.resources import files
 from io import StringIO
 from typing import Any
 
+from cwltool.process import get_schema, use_custom_schema
 from cwltool.process import (
-    get_schema,
     supportedProcessRequirements as supported_process_requirements,
-    use_custom_schema,
 )
 from ruamel.yaml import YAML
 
