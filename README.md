@@ -8,7 +8,7 @@ Transpiler-Mate software metadata model.
 
 ## Install
 
-Python 3.10 or newer:
+Python 3.11 through 3.15:
 
 ```sh
 python -m pip install .
