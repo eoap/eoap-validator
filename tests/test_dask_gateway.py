@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import pytest
+from click.testing import CliRunner
 from ruamel.yaml import YAML
 
 from eoap_validator import validate
+from eoap_validator.cli import main
 from eoap_validator.extensions import dask_gateway
 
 if TYPE_CHECKING:
@@ -165,3 +167,27 @@ def test_loader_fallback_receives_schema_callback(
     operational_failure_exit_code = 2
     assert report.exit_code() == operational_failure_exit_code
     assert seen == [dask_gateway.register_dask_schema]
+
+
+def test_cli_dask_gateway_flag_is_explicit(
+    document: dict[str, Any], write: Writer
+) -> None:
+    add_dask_requirement(document)
+    source = write(document)
+
+    default_result = CliRunner().invoke(main, [source])
+    enabled_result = CliRunner().invoke(main, [source, "--enable-dask-gateway"])
+
+    assert default_result.exit_code == 1
+    assert enabled_result.exit_code == 0, enabled_result.output
+
+
+def test_cli_dask_gateway_flag_validates_fields(
+    document: dict[str, Any], write: Writer
+) -> None:
+    requirement = add_dask_requirement(document)
+    requirement["workerCores"] = "one"
+
+    result = CliRunner().invoke(main, [write(document), "--enable-dask-gateway"])
+
+    assert result.exit_code == 1
