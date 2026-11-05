@@ -7,7 +7,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from click.testing import CliRunner
 
-from eoap_validator import StagingConfig, validate
+from eoap_validator import StagingConfig, engine, validate
 from eoap_validator.cli import main
 from eoap_validator.models import Severity, Status
 from eoap_validator.report import Finding, Location, Report
@@ -25,6 +25,53 @@ def failures(report: Report) -> list[ModelFinding]:
     return [
         f for f in report.findings if getattr(f.status, "value", f.status) == "failed"
     ]
+
+
+@pytest.mark.parametrize(
+    ("process_id", "expected"),
+    [
+        ("application", "file:///tmp/workflow.cwl#application"),
+        ("#application", "file:///tmp/workflow.cwl#application"),
+        ("file:///tmp/workflow.cwl", "file:///tmp/workflow.cwl"),
+        (
+            "file:///tmp/workflow.cwl#application",
+            "file:///tmp/workflow.cwl#application",
+        ),
+        (
+            "https://example.org/workflow.cwl#application",
+            "https://example.org/workflow.cwl#application",
+        ),
+        (
+            "urn:uuid:01234567-89ab-cdef-0123-456789abcdef",
+            "urn:uuid:01234567-89ab-cdef-0123-456789abcdef",
+        ),
+    ],
+)
+def test_process_uri(process_id: str, expected: str) -> None:
+    assert engine.process_uri("file:///tmp/workflow.cwl", process_id) == expected
+
+
+def test_implicit_workflow_id_continues_package_validation(
+    document: dict[str, Any], write: Writer
+) -> None:
+    workflow, tool = deepcopy(document["$graph"])
+    del workflow["id"]
+    workflow["steps"]["echo"]["run"] = tool
+    source = {key: value for key, value in document.items() if key != "$graph"}
+    source.update(workflow)
+
+    report = validate(write(source))
+
+    statuses = {
+        finding.rule_id: getattr(finding.status, "value", finding.status)
+        for finding in report.findings
+    }
+    assert statuses["CWL.VALIDATE"] == "passed", report.to_dict()
+    assert statuses["EOAP.SOURCE.ID"] == "failed"
+    assert statuses["EOAP.REQ7.STRUCTURE"] == "passed"
+    assert statuses.get("PACKAGE.GRAPH") != "blocked"
+    assert report.entrypoint == report.source
+    assert report.exit_code() == 1
 
 
 def test_valid_combined(document: dict[str, Any], write: Writer) -> None:

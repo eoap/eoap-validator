@@ -7,7 +7,7 @@ from copy import deepcopy
 from importlib.metadata import PackageNotFoundError, version
 from io import StringIO
 from typing import Any
-from urllib.parse import urldefrag
+from urllib.parse import urldefrag, urlparse
 
 import requests
 from cwl_loader import load_cwl_from_yaml
@@ -69,6 +69,13 @@ def validate_cwl(uri: str) -> tuple[bool, str]:
         logger.handlers = handlers
         logger.setLevel(level)
     return code == 0, stderr.getvalue() or stdout.getvalue()
+
+
+def process_uri(source_uri: str, process_id: str) -> str:
+    """Return cwltool's validation URI for a normalized process ID."""
+    if urlparse(process_id).scheme:
+        return process_id
+    return f"{source_uri}#{process_id.removeprefix('#')}"
 
 
 def fetch_failure(message: str) -> bool:
@@ -313,7 +320,7 @@ def select_contexts(
         return None
     report.entrypoint = root.id
     try:
-        valid, diagnostics = validate_cwl(f"{uri}#{root.id}")
+        valid, diagnostics = validate_cwl(process_uri(uri, root.id))
         add(
             report,
             "CWL.VALIDATE",
