@@ -126,6 +126,23 @@ def test_dask_schema_does_not_allow_other_mandatory_extensions(
     assert report.exit_code() == 1
 
 
+def test_dask_schema_does_not_enable_cwltool_extensions(
+    document: dict[str, Any], write: Writer
+) -> None:
+    add_dask_requirement(document)
+    document["$namespaces"]["cwltool"] = "http://commonwl.org/cwltool#"
+    document["$graph"][1]["requirements"]["cwltool:ShmSize"] = {"shmSize": "64m"}
+
+    report = validate(
+        write(document), custom_schema_callback=dask_gateway.register_dask_schema
+    )
+
+    assert report.exit_code() == 1
+    finding = next(f for f in report.findings if f.rule_id == "CWL.VALIDATE")
+    assert "contains undefined" in finding.message
+    assert "http://commonwl.org/cwltool#ShmSize" in finding.message
+
+
 def test_dask_schema_does_not_leak_to_default_validation(
     document: dict[str, Any], write: Writer
 ) -> None:

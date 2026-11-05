@@ -44,6 +44,9 @@ def register_dask_schema() -> None:
 
     for version, extension_resource in _EXTENSION_SCHEMAS.items():
         schema = _load_yaml("cwltool", extension_resource)
+        schema["$graph"] = [
+            definition for definition in schema["$graph"] if "name" not in definition
+        ]
         schema["$graph"].extend(
             dict(definition, name=base + definition["name"])
             for definition in dask_schema["$graph"]
