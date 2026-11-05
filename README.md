@@ -57,6 +57,26 @@ An exit status of zero means the selected failure threshold was not exceeded;
 it is not a certificate of complete EOAP or platform compliance. Always inspect
 `needs-review` and `blocked` counts in the report.
 
+### Dask Gateway requirement
+
+Unknown mandatory CWL requirements are rejected by default. To validate the
+Calrissian Dask Gateway requirement against the trusted schema bundled with the
+validator, enable it explicitly:
+
+```sh
+eoap-validator workflow.cwl --enable-dask-gateway
+```
+
+The flag recognizes only
+`https://calrissian-cwl.github.io/schema#DaskGatewayRequirement` and validates
+its required fields and field types. It does not enable other CWL extensions,
+execute the workflow, contact a Dask Gateway, or establish that the available
+runtime can execute the requirement.
+
+The bundled contract is synchronized from Duke-GCB/calrissian commit
+`771768852f0f69aac84a63d8f2ca62e16a22b36a`. Changes to the upstream contract
+must be applied and compatibility-tested in both repositories.
+
 ## Staging applicability
 
 Staging is conditional: a Directory parameter alone does not prove correct

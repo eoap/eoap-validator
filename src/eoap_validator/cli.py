@@ -13,6 +13,7 @@ from loguru import logger
 from pydantic import ValidationError
 
 from .engine import validate
+from .extensions.dask_gateway import register_dask_schema
 from .report import PROFILES, Report, StagingConfig
 
 
@@ -36,6 +37,11 @@ from .report import PROFILES, Report, StagingConfig
     help="Write the full JSON report.",
 )
 @click.option(
+    "--enable-dask-gateway",
+    is_flag=True,
+    help="Validate Calrissian's DaskGatewayRequirement schema.",
+)
+@click.option(
     "--format",
     "output_format",
     type=click.Choice(["text", "json"]),
@@ -49,11 +55,12 @@ from .report import PROFILES, Report, StagingConfig
     show_default=True,
 )
 @click.version_option(package_name="eoap-validator")
-def main(
+def main(  # noqa: PLR0913, PLR0917 - Click injects one parameter per CLI option.
     source: str,
     profiles: tuple[str, ...],
     staging: Path | None,
     output: Path | None,
+    enable_dask_gateway: bool,
     output_format: Literal["text", "json"],
     fail_on: Literal["error", "warning"],
 ) -> None:
@@ -65,7 +72,12 @@ def main(
         )
         with redirect_stdout(sys.stderr):
             report = validate(
-                source, profiles=profiles or ("eoap-package",), staging=config
+                source,
+                profiles=profiles or ("eoap-package",),
+                staging=config,
+                custom_schema_callback=(
+                    register_dask_schema if enable_dask_gateway else None
+                ),
             )
     except (ValueError, ValidationError, OSError) as exc:
         click.echo(f"Configuration error: {exc}", err=True)

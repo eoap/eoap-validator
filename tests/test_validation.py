@@ -377,7 +377,7 @@ def test_network_failure_is_incomplete(
     monkeypatch.setattr(
         engine,
         "validate_cwl",
-        lambda uri: (
+        lambda uri, custom_schema_callback=None: (
             False,
             "Error fetching https://example.org/schema.yaml: Read timed out",
         ),
